@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 
 file(READ fomalib.h _VERSION_FILE)
@@ -65,7 +65,15 @@ endif()
 # Only look for readline if not building for WASM
 if(NOT EMSCRIPTEN)
     if(NOT READLINE_INCLUDE_DIRS)
-        find_path(READLINE_INCLUDE_DIRS readline.h PATH_SUFFIXES readline REQUIRED)
+	find_path(READLINE_INCLUDE_DIRS 
+	    NAMES readline.h
+	    PATH_SUFFIXES readline
+	    PATHS 
+	        /usr/include 
+	        /usr/local/include 
+	        /opt/include
+	    REQUIRED
+	)
         find_library(READLINE_LIBRARIES readline REQUIRED)
     endif()
     include_directories(${READLINE_INCLUDE_DIRS})
@@ -134,14 +142,6 @@ add_library(foma-static STATIC ${SOURCES})
 target_link_libraries(foma-static PUBLIC ${ZLIB_LIBS})
 set_target_properties(foma-static PROPERTIES ARCHIVE_OUTPUT_NAME foma)
 
-add_library(foma-shared SHARED ${SOURCES})
-target_link_libraries(foma-shared PRIVATE ${ZLIB_LIBS})
-set_target_properties(foma-shared PROPERTIES
-	LIBRARY_OUTPUT_NAME foma RUNTIME_OUTPUT_NAME foma
-	VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-if(NOT MSVC)
-	set_target_properties(foma-shared PROPERTIES ARCHIVE_OUTPUT_NAME foma)
-endif()
 
 # WASM-specific target
 if(EMSCRIPTEN)
@@ -173,6 +173,15 @@ if(EMSCRIPTEN)
 
     install(TARGETS libfoma RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 else()
+    add_library(foma-shared SHARED ${SOURCES})
+    target_link_libraries(foma-shared PRIVATE ${ZLIB_LIBS})
+    set_target_properties(foma-shared PROPERTIES
+	    LIBRARY_OUTPUT_NAME foma RUNTIME_OUTPUT_NAME foma
+	    VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+    if(NOT MSVC)
+	    set_target_properties(foma-shared PROPERTIES ARCHIVE_OUTPUT_NAME foma)
+    endif()
+
     # Regular foma-bin target
     add_executable(foma-bin foma.c stack.c iface.c ${FLEX_Finterface_OUTPUTS})
     target_link_libraries(foma-bin PRIVATE foma-static ${READLINE_LIBRARIES} ${GETOPT_LIB})
